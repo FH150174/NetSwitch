@@ -1,0 +1,19 @@
+# 构建产物
+bin/
+obj/
+publish/
+
+# Visual Studio / Rider
+.vs/
+.idea/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# AI 会话日志
+docs/.deep-copilot/
+
+# 操作系统 / 编辑器
+Thumbs.db
+.DS_Store

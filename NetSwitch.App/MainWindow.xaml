@@ -1,0 +1,142 @@
+<Window x:Class="NetSwitch.App.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="NetSwitch 网络适配器切换器"
+        Icon="app.ico"
+        Height="560" Width="880"
+        MinHeight="420" MinWidth="680"
+        WindowStartupLocation="CenterScreen">
+    <Window.Resources>
+        <SolidColorBrush x:Key="AccentBrush" Color="#0078D4"/>
+        <SolidColorBrush x:Key="MutedBrush" Color="#6B7280"/>
+        <SolidColorBrush x:Key="SurfaceBrush" Color="#F3F4F6"/>
+        <SolidColorBrush x:Key="BorderBrush" Color="#E5E7EB"/>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- 工具栏 -->
+        <Border Grid.Row="0" Background="{StaticResource SurfaceBrush}"
+                BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,0,0,1"
+                Padding="12,10">
+            <StackPanel Orientation="Horizontal">
+                <CheckBox Content="自动仲裁" IsChecked="{Binding AutoArbitrate}"
+                          VerticalAlignment="Center" Margin="0,0,16,0"/>
+                <CheckBox Content="桌面通知" IsChecked="{Binding NotificationsEnabled}"
+                          VerticalAlignment="Center" Margin="0,0,16,0"/>
+                <CheckBox Content="开机自启" IsChecked="{Binding AutoStartEnabled}"
+                          VerticalAlignment="Center" Margin="0,0,16,0"/>
+                <TextBlock Text="轮询间隔(秒)" VerticalAlignment="Center"/>
+                <ComboBox Width="60" Margin="6,0,20,0"
+                          SelectedItem="{Binding PollIntervalSeconds}"
+                          ItemsSource="{Binding PollIntervals}"/>
+                <Button Content="刷新" Command="{Binding RefreshNowCommand}" Padding="14,4"/>
+                <Button Content="查看日志" Command="{Binding OpenLogCommand}" Padding="14,4" Margin="8,0,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- 网卡列表 -->
+        <ListView Grid.Row="1" ItemsSource="{Binding Adapters}"
+                  SelectedItem="{Binding SelectedAdapter}"
+                  BorderThickness="0"
+                  Background="#FAFAFB"
+                  ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+            <ListView.ItemTemplate>
+                <DataTemplate>
+                    <Border Margin="12,5" Padding="12,10" CornerRadius="8"
+                            Background="White" BorderBrush="{StaticResource BorderBrush}" BorderThickness="1">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <!-- 状态点 -->
+                            <Ellipse Grid.Column="0" Width="12" Height="12"
+                                     VerticalAlignment="Center" Margin="0,0,14,0">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="#9CA3AF"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding State}" Value="Up">
+                                                <Setter Property="Fill" Value="#10B981"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding State}" Value="Disconnected">
+                                                <Setter Property="Fill" Value="#9CA3AF"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding State}" Value="Disabled">
+                                                <Setter Property="Fill" Value="#EF4444"/>
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding State}" Value="NotPresent">
+                                                <Setter Property="Fill" Value="#D1D5DB"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+
+                            <!-- 名称 + 描述 -->
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" FontSize="14"/>
+                                <TextBlock Text="{Binding Description}"
+                                           Foreground="{StaticResource MutedBrush}" FontSize="12"/>
+                            </StackPanel>
+
+                            <!-- 类型 + 状态 -->
+                            <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="0,0,16,0">
+                                <TextBlock Text="{Binding InterfaceTypeText}"
+                                           HorizontalAlignment="Right" FontSize="12"/>
+                                <TextBlock Text="{Binding StateText}"
+                                           HorizontalAlignment="Right"
+                                           Foreground="{StaticResource MutedBrush}" FontSize="12"/>
+                                <TextBlock HorizontalAlignment="Right" FontSize="11" Margin="0,2,0,0">
+                                    <Run Text="优先级 "/><Run Text="{Binding Priority}" FontWeight="SemiBold"/>
+                                </TextBlock>
+                            </StackPanel>
+
+                            <!-- 操作按钮 -->
+                            <StackPanel Grid.Column="3" Orientation="Horizontal" VerticalAlignment="Center">
+                                <Button Content="↑" ToolTip="提高优先级" Width="28" Margin="2"
+                                        Command="{Binding DataContext.MoveUpCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}"/>
+                                <Button Content="↓" ToolTip="降低优先级" Width="28" Margin="2"
+                                        Command="{Binding DataContext.MoveDownCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}"/>
+                                <Button Content="切换" ToolTip="手动切换到此网卡" Padding="12,4" Margin="2"
+                                        Command="{Binding DataContext.SwitchToCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}"/>
+                                <Button ToolTip="纳入 / 排除仲裁" Padding="10,4" Margin="2"
+                                        Command="{Binding DataContext.ToggleIgnoreCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                        CommandParameter="{Binding}">
+                                    <Button.Style>
+                                        <Style TargetType="Button">
+                                            <Setter Property="Content" Value="忽略"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsIgnored}" Value="True">
+                                                    <Setter Property="Content" Value="取消忽略"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+                </DataTemplate>
+            </ListView.ItemTemplate>
+        </ListView>
+
+        <!-- 状态栏 -->
+        <Border Grid.Row="2" BorderBrush="{StaticResource BorderBrush}" BorderThickness="0,1,0,0"
+                Padding="12,7">
+            <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource MutedBrush}" FontSize="12"/>
+        </Border>
+    </Grid>
+</Window>
