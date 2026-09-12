@@ -14,18 +14,21 @@ public sealed class AdapterMonitor
     private readonly Action _onRefreshed;
     private readonly ILogger _logger;
     private readonly Func<int> _pollInterval;
+    private readonly TimeSpan _initialDelay;
     private CancellationTokenSource? _cts;
 
     public AdapterMonitor(
         ArbitrationService arbitration,
         Action onRefreshed,
         ILogger logger,
-        Func<int> pollInterval)
+        Func<int> pollInterval,
+        TimeSpan initialDelay = default)
     {
         _arbitration = arbitration;
         _onRefreshed = onRefreshed;
         _logger = logger;
         _pollInterval = pollInterval;
+        _initialDelay = initialDelay;
     }
 
     public void Start()
@@ -38,6 +41,20 @@ public sealed class AdapterMonitor
 
     private async Task RunLoop(CancellationToken token)
     {
+        // 登录后早期网络栈/WMI 可能尚未就绪，首次枚举会得到空快照并触发误判与抖动。
+        // 静默启动（由计划任务拉起）时尤其明显，故首个仲裁周期前先等待一段短时间。
+        if (_initialDelay > TimeSpan.Zero)
+        {
+            try
+            {
+                await Task.Delay(_initialDelay, token);
+            }
+            catch (OperationCanceledException)
+            {
+                return;
+            }
+        }
+
         while (!token.IsCancellationRequested)
         {
             try

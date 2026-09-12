@@ -31,6 +31,9 @@
                           VerticalAlignment="Center" Margin="0,0,16,0"/>
                 <CheckBox Content="开机自启" IsChecked="{Binding AutoStartEnabled}"
                           VerticalAlignment="Center" Margin="0,0,16,0"/>
+                <CheckBox Content="静默启动" IsChecked="{Binding StartSilently}"
+                          ToolTip="启动后不显示主窗口，直接驻留托盘"
+                          VerticalAlignment="Center" Margin="0,0,16,0"/>
                 <TextBlock Text="轮询间隔(秒)" VerticalAlignment="Center"/>
                 <ComboBox Width="60" Margin="6,0,20,0"
                           SelectedItem="{Binding PollIntervalSeconds}"
@@ -73,6 +76,10 @@
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding State}" Value="Disabled">
                                                 <Setter Property="Fill" Value="#EF4444"/>
+                                            </DataTrigger>
+                                            <!-- 设备存在但链路状态无法判定（V1.1 新增）：绝不显示为「不存在」 -->
+                                            <DataTrigger Binding="{Binding State}" Value="Unknown">
+                                                <Setter Property="Fill" Value="#F59E0B"/>
                                             </DataTrigger>
                                             <DataTrigger Binding="{Binding State}" Value="NotPresent">
                                                 <Setter Property="Fill" Value="#D1D5DB"/>

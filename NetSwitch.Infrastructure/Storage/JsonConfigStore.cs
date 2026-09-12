@@ -27,10 +27,31 @@ public sealed class JsonConfigStore : IConfigStore
 
     public JsonConfigStore(string? directory = null)
     {
-        _directory = directory ?? Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "NetSwitch");
+        _directory = directory ?? Path.Combine(ResolveAppDataDirectory(), "NetSwitch");
         _filePath = Path.Combine(_directory, "config.json");
+    }
+
+    /// <summary>
+    /// 解析漫游 AppData 目录。某些受限会话（服务账户、环境变量被裁剪的沙箱）
+    /// 下 <see cref="Environment.GetFolderPath(Environment.SpecialFolder)"/> 会返回空串，
+    /// 此时回退到 USERPROFILE，避免把配置写到当前工作目录这种不可预期的位置。
+    /// </summary>
+    private static string ResolveAppDataDirectory()
+    {
+        var path = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+        if (!string.IsNullOrWhiteSpace(path))
+        {
+            return path;
+        }
+
+        var profile = Environment.GetEnvironmentVariable("USERPROFILE")
+            ?? Environment.GetEnvironmentVariable("HOME");
+        if (!string.IsNullOrWhiteSpace(profile))
+        {
+            return Path.Combine(profile, "AppData", "Roaming");
+        }
+
+        return AppContext.BaseDirectory;
     }
 
     public AppConfig Load()

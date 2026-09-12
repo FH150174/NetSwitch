@@ -24,4 +24,13 @@
     <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
 
+  <PropertyGroup>
+    <Version>1.2.0</Version>
+    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <FileVersion>1.2.0.0</FileVersion>
+    <Product>NetSwitch</Product>
+    <Description>Windows 网络适配器优先级自动仲裁器</Description>
+    <Copyright>Copyright (c) FH</Copyright>
+  </PropertyGroup>
+
 </Project>

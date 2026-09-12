@@ -14,6 +14,9 @@ publish/
 # AI 会话日志
 docs/.deep-copilot/
 
+# AI 工作目录（项目记忆 / 会话数据，不纳入版本控制）
+.workbuddy-ai/
+
 # 操作系统 / 编辑器
 Thumbs.db
 .DS_Store

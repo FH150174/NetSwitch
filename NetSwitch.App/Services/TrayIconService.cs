@@ -14,20 +14,34 @@ public sealed class TrayIconService : INotifier, IDisposable
 {
     private readonly TaskbarIcon _icon;
     private readonly MenuItem _autoItem;
+    private readonly MenuItem _autoStartItem;
+    private readonly MenuItem _silentItem;
     private readonly Action _openMainWindow;
     private readonly Func<bool> _getAutoArbitrate;
     private readonly Action<bool> _setAutoArbitrate;
+    private readonly Func<bool> _getAutoStart;
+    private readonly Action<bool> _setAutoStart;
+    private readonly Func<bool> _getStartSilently;
+    private readonly Action<bool> _setStartSilently;
     private readonly Action _exit;
 
     public TrayIconService(
         Action openMainWindow,
         Func<bool> getAutoArbitrate,
         Action<bool> setAutoArbitrate,
+        Func<bool> getAutoStart,
+        Action<bool> setAutoStart,
+        Func<bool> getStartSilently,
+        Action<bool> setStartSilently,
         Action exit)
     {
         _openMainWindow = openMainWindow;
         _getAutoArbitrate = getAutoArbitrate;
         _setAutoArbitrate = setAutoArbitrate;
+        _getAutoStart = getAutoStart;
+        _setAutoStart = setAutoStart;
+        _getStartSilently = getStartSilently;
+        _setStartSilently = setStartSilently;
         _exit = exit;
 
         var openItem = new MenuItem { Header = "打开 NetSwitch" };
@@ -41,6 +55,23 @@ public sealed class TrayIconService : INotifier, IDisposable
         };
         _autoItem.Click += (_, _) => _setAutoArbitrate(_autoItem.IsChecked);
 
+        // 规格 §10.3：托盘右键菜单提供「开机自启」与「静默启动」两个勾选项。
+        _autoStartItem = new MenuItem
+        {
+            Header = "开机自启",
+            IsCheckable = true,
+            IsChecked = _getAutoStart(),
+        };
+        _autoStartItem.Click += (_, _) => _setAutoStart(_autoStartItem.IsChecked);
+
+        _silentItem = new MenuItem
+        {
+            Header = "静默启动",
+            IsCheckable = true,
+            IsChecked = _getStartSilently(),
+        };
+        _silentItem.Click += (_, _) => _setStartSilently(_silentItem.IsChecked);
+
         var exitItem = new MenuItem { Header = "退出" };
         exitItem.Click += (_, _) => _exit();
 
@@ -52,12 +83,20 @@ public sealed class TrayIconService : INotifier, IDisposable
                 new Separator(),
                 _autoItem,
                 new Separator(),
+                _autoStartItem,
+                _silentItem,
+                new Separator(),
                 exitItem,
             },
         };
 
-        // 每次展开菜单时回读主窗口的自动模式状态，保持勾选一致。
-        contextMenu.Opened += (_, _) => _autoItem.IsChecked = _getAutoArbitrate();
+        // 每次展开菜单时回读配置，保持勾选与真实状态一致（托盘与主窗口可能各改一处）。
+        contextMenu.Opened += (_, _) =>
+        {
+            _autoItem.IsChecked = _getAutoArbitrate();
+            _autoStartItem.IsChecked = _getAutoStart();
+            _silentItem.IsChecked = _getStartSilently();
+        };
 
         _icon = new TaskbarIcon
         {
