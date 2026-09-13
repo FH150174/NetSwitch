@@ -1,10 +1,10 @@
 # NetSwitch 网络适配器切换器 — 设计规格
 
-- 文档版本：**V1.2**
-- 日期：V1.0 2026-09-11 / V1.1 2026-09-13 / **V1.2 2026-09-13**
+- 文档版本：**V1.2.1**
+- 日期：V1.0 2026-09-11 / V1.1 2026-09-13 / V1.2 2026-09-13 / **V1.2.1 2026-09-13**
 - 状态：**已实现，并通过真机验证**
 - 项目位置：`D:\NetSwitch`
-- 代码基线：tag **`v1.2.0`**；运行产物 `NetSwitch.App\bin\Release\net10.0-windows\NetSwitch.App.exe`
+- 代码基线：tag **`v1.2.1`**；运行产物 `NetSwitch.App\bin\Release\net10.0-windows\NetSwitch.App.exe`
 
 ## 修订记录
 
@@ -12,7 +12,8 @@
 |---|---|---|
 | V1.0 | 2026-09-11 | 初稿：多网卡优先级排序 + 自动仲裁 + 托盘 GUI + 开机自启 |
 | V1.1 | 2026-09-13 | ① 新增 §7.5「缺陷修复规格」，修复「优先级 1 的以太网 3 已连接却显示为『不存在』」（D1/D1b/D2/D3/D4/D5）；② 新增 §10.3「静默启动」，开机自启升级为静默启动并新增「静默启动」开关；③ 领域模型引入 `Presence` / `LinkState` 正交维度，废弃单一 `AdapterState` 兼任存在性；④ 新增 §16 实测证据、§17 文件级实施清单 |
-| V1.2 | 2026-09-13 | ① **§17 清单 17 项全部落地**（Core / Infrastructure / App / Tests 四层，含新增 `AdapterStateMapper`、`PnpPresenceSet`、`StartupOptions`）；② 25 个单元测试全绿（新增 T1~T8 + S8）；③ **真机验证**：D1 在真实 RNDIS 设备上确认修复、任务自校验自动重建、幽灵条目存量清理、静默启动与单实例唤起均通过（证据见 §18）；④ 追加修复：诊断日志按设备去重（原每轮询周期刷屏）、`JsonConfigStore` 的 AppData 解析加 `USERPROFILE` 兜底、`StartSilently` 默认值问题实测定性；⑤ 版本号定为 `1.2.0` |
+| V1.2 | 2026-09-13 | ① **§17 清单 17 项全部落地**（Core / Infrastructure / App / Tests 四层，含新增 `AdapterStateMapper`、`PnpPresenceSet`、`StartupOptions`）；② 25 个单元测试全绿（新增 T1~T8 + S8）；③ **真机验证**：D1 在真实 RNDIS 设备上确认修复、任务自校验自动重建、幽灵条目存量清理、静默启动与单实例唤起均通过（证据见 §18）；④ 追加修复：诊断日志按设备去重（原每轮询周期刷屏）、`JsonConfigStore` 的 AppData 解析加 `USERPROFILE` 兜底；⑤ 版本号定为 `1.2.0` |
+| V1.2.1 | 2026-09-13 | **定稿 §15 的开放问题（采纳方案 2）**：`AppConfig.StartSilently` 改为 `bool?`，配置文件无该字段（首次运行 / 从旧版升级）时取 `FirstRunStartSilently = false`（**首次双击给窗口**），并物化落盘；此后完全以用户选择为准。开机自启不受影响（任务固定带 `--silent`）。新增 `StartSilentlyTests`（7 个用例），单元测试总数 32 |
 
 > **V1.1 的两条硬约束（本次交付必须满足）**
 > 1. 优先级为 1 的网卡在**物理存在**时，状态绝不允许显示为「不存在」。
@@ -350,7 +351,7 @@ KnownAdapter（已知库持久化条目）:
 
 | 项 | 说明 |
 |---|---|
-| `AppConfig.StartSilently`（bool，默认 `true`） | 用户可见的「静默启动」开关 |
+| `AppConfig.StartSilently`（`bool?`） | 用户可见的「静默启动」开关。**`null` = 配置文件中尚无该字段**（首次运行，或从 V1.2.0 之前的版本升级），此时按 `AppConfig.FirstRunStartSilently`（**`false`**）取值，即首次双击给窗口；该值在首次保存时物化落盘，此后完全以用户选择为准（V1.2.1 定稿，见 §15） |
 | `--silent`（命令行） | 强制静默；计划任务固定使用 |
 | `--show`（命令行） | 强制显示主窗口（用于"这次我要看界面"的场景） |
 | 优先级 | 命令行 > 配置项。即 `--silent`/`--show` 存在时忽略 `StartSilently` |
@@ -476,11 +477,11 @@ dotnet publish NetSwitch.App -r win-x64 -c Release \
 - **禁用唯一网卡导致断网**：由四重护栏覆盖——「candidates 为空不操作」「available 为空不操作（全部 Disconnected）」「忽略列表」「自动模式开关」。V1.1 进一步把 `Unknown` 排除出 target，护栏更强。
 - **虚拟网卡误判**：默认建议忽略 `InterfaceType == Virtual` 的网卡，首次识别时提示用户确认。
 - **USB/RNDIS 网卡状态抖动**（本次 D1 的触发条件）：USB 网络共享设备会因驱动加载时序、USB 选择性挂起等原因在"活跃通道可见/不可见"之间反复。V1.1 通过"存在性以 PnP 节点为准 + `oper==6` 不再判不存在 + 观察期可见化 + 状态变更诊断日志"覆盖；若仍偶发，可考虑 V2 的事件驱动检测。
-- **开放问题（V1.2 已实测定性，待机主定稿）**：`StartSilently` 默认值取 `true` 是否合适？对"双击 exe 就是为了看界面"的用户，默认静默会让人以为程序没启动——**V1.2 交付时实测复现了这一困惑**（双击后无窗口，仅托盘图标）。当前处置：代码默认值保持 `true`（符合 §10.3 规格），机主本地 `config.json` 的 `startSilently` 已置为 `false` 以便测试。候选定稿方案（三选一）：
-  1. 保持默认 `true`，仅靠 UI 上的复选框与托盘提示引导；
-  2. 默认 `true`，但**首次运行**（`FirstRun`，配置文件中无该字段时）默认 `false`，即"第一次双击给窗口，之后按用户选择"；
-  3. 默认 `false`，把静默完全交给计划任务（`--silent`）与用户显式勾选。
-  推荐方案 2：既保留"自启静默"的默认体验，又避免首次双击时的"程序没启动"误判。
+- **~~开放问题~~ → 已定稿（V1.2.1 采纳方案 2）**：`StartSilently` 的默认值。
+  背景：对"双击 exe 就是为了看界面"的用户，默认静默会让人以为程序没启动——V1.2.0 交付时**实测复现了这一困惑**（双击后无窗口，仅托盘图标）。
+  **定稿方案**：`AppConfig.StartSilently` 改为 `bool?`；配置文件中**尚无该字段**时（首次运行，或从 V1.2.0 之前升级上来）取 `AppConfig.FirstRunStartSilently = false`，即**首次双击给窗口**；该值在首次保存时物化落盘，此后完全以用户选择为准。
+  这样既保留了「自启静默」的默认体验（计划任务固定带 `--silent`，命令行优先级高于配置项），又消除了首次双击时的"程序没启动"误判。回归用例见 `NetSwitch.Tests/StartSilentlyTests.cs`（7 个）。
+  未采纳的备选：① 保持默认 `true`，仅靠 UI 复选框与托盘提示引导（仍会误判）；② 默认 `false`，把静默完全交给计划任务与用户显式勾选（削弱了「静默启动」作为默认体验的意图）。
 
 ## 16. 附录 A：本次诊断的实测证据
 
@@ -574,8 +575,11 @@ Win32_PnPEntity（PNPClass='Net'）
 | 15 | `NetSwitch.App/Services/TrayIconService.cs` | 托盘菜单新增「开机自启」「静默启动」勾选项 |
 | 16 | `NetSwitch.Tests/ArbitrationServiceTests.cs`、`Fakes.cs` | 新增 §12 的 T1~T8 用例（假仓库需支持 `Presence`/`LinkState`） |
 | 17 | `README.md` | 同步"静默启动"与状态语义说明 |
+| 18 | `NetSwitch.Tests/StartSilentlyTests.cs` | **V1.2.1 新增**：首次运行默认值语义（无字段 → `false`、物化落盘、用户显式值优先），7 个用例 |
 
 **V1.2 落地情况**：上表 17 项**全部完成**（另追加 3 项：`AdapterStateMapper`、`PnpPresenceSet`、`StartupOptions` 三个新文件已计入 7a/7b/11）。构建 0 警告 0 错误；`NetSwitch.Tests` 25 个用例全绿（15 个既有 + T1/T2/T3/T4/T5/T5b/T6/T7/T8/S8）。
+
+**V1.2.1 增量**：第 18 项（`StartSilentlyTests`）+ `AppConfig.StartSilently` 改为 `bool?` 并引入 `FirstRunStartSilently` / `ResolveStartSilently()`；单元测试总数增至 **32**，全绿。
 
 ---
 

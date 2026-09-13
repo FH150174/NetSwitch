@@ -110,7 +110,7 @@ public partial class MainViewModel : ObservableObject
         var config = _configStore.Load();
         autoArbitrate = config.AutoArbitrate;
         autoStartEnabled = config.AutoStartEnabled;
-        startSilently = config.StartSilently;
+        startSilently = config.ResolveStartSilently();
         notificationsEnabled = config.NotificationsEnabled;
         pollIntervalSeconds = config.PollIntervalSeconds;
         OnPropertyChanged(nameof(AutoArbitrate));

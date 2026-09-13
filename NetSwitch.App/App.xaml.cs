@@ -75,9 +75,10 @@ public partial class App : Application
         // 启动模式：命令行 > 配置项（规格 §10.3）。
         var startupMode = StartupOptions.ParseMode(e.Args);
         var config = configStore.Load();
-        var silent = StartupOptions.ResolveSilent(e.Args, config.StartSilently);
+        var silent = StartupOptions.ResolveSilent(e.Args, config.ResolveStartSilently());
         _logger.Info(
-            $"启动模式={startupMode}，配置 StartSilently={config.StartSilently}，实际{(silent ? "静默" : "显示窗口")}");
+            $"启动模式={startupMode}，StartSilently={config.ResolveStartSilently()}，" +
+            $"实际{(silent ? "静默" : "显示窗口")}");
 
         var autoStart = new AutoStartService(_logger);
 
@@ -162,7 +163,7 @@ public partial class App : Application
 
                     _mainViewModel?.SyncSettingsFromConfig();
                 },
-                getStartSilently: () => configStore.Load().StartSilently,
+                getStartSilently: () => configStore.Load().ResolveStartSilently(),
                 setStartSilently: value =>
                 {
                     var config = configStore.Load();

@@ -67,7 +67,7 @@ public sealed class JsonConfigStore : IConfigStore
 
                 var json = File.ReadAllText(_filePath);
                 var config = JsonSerializer.Deserialize<AppConfig>(json, Options) ?? NewDefault();
-                config.KnownAdapters ??= new List<KnownAdapter>();
+                MaterializeFirstRunDefaults(config);
                 _cached = config;
                 return config;
             }
@@ -101,8 +101,21 @@ public sealed class JsonConfigStore : IConfigStore
     private AppConfig NewDefault()
     {
         var fresh = new AppConfig();
+        MaterializeFirstRunDefaults(fresh);
         _cached = fresh;
         return fresh;
+    }
+
+    /// <summary>
+    /// 把「首次运行默认值」物化成具体值。配置文件中尚无 <c>startSilently</c> 字段时
+    /// （首次运行，或从 V1.2.0 之前的版本升级上来），取
+    /// <see cref="AppConfig.FirstRunStartSilently"/>（<c>false</c>，即首次双击给窗口），
+    /// 并在随后任意一次 <see cref="Save"/> 时落盘，避免配置文件长期留 <c>null</c>。
+    /// </summary>
+    private static void MaterializeFirstRunDefaults(AppConfig config)
+    {
+        config.KnownAdapters ??= new List<KnownAdapter>();
+        config.StartSilently ??= AppConfig.FirstRunStartSilently;
     }
 
     private void BackupCorruptFile()
