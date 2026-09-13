@@ -1,5 +1,7 @@
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Windows;
+using System.Windows.Interop;
 using NetSwitch.App.Services;
 using NetSwitch.App.ViewModels;
 using NetSwitch.Core.Abstractions;
@@ -18,6 +20,9 @@ public partial class App : Application
 {
     private const string MutexName = "NetSwitch.SingleInstance";
     private const string ShowWindowEventName = "NetSwitch.ShowWindow";
+
+    /// <summary><c>ShowWindow</c> 的 <c>SW_RESTORE</c>。</summary>
+    private const int SwRestore = 9;
 
     /// <summary>静默启动时首个仲裁周期前的等待时间，等网络栈/WMI 就绪（规格 §10.3）。</summary>
     private static readonly TimeSpan StartupSettleDelay = TimeSpan.FromSeconds(3);
@@ -210,14 +215,36 @@ public partial class App : Application
             return;
         }
 
-        _mainWindow.Show();
+        if (!_mainWindow.IsVisible)
+        {
+            _mainWindow.Show();
+        }
+
         if (_mainWindow.WindowState == WindowState.Minimized)
         {
             _mainWindow.WindowState = WindowState.Normal;
         }
 
+        // 静默启动时窗口从未显示过。若进程由计划任务以隐藏/最小化方式拉起，
+        // WPF 会继承 STARTUPINFO 的显示状态，导致 Show() 之后窗口仍是「可见但最小化」。
+        // 显式 SW_RESTORE + 置前，保证「静默 → 唤起」这条路径下窗口一定正常出现在屏幕上。
+        var handle = new WindowInteropHelper(_mainWindow).Handle;
+        if (handle != IntPtr.Zero)
+        {
+            RestoreWindowNative(handle, SwRestore);
+            SetForegroundWindowNative(handle);
+        }
+
         _mainWindow.Activate();
     }
+
+    // 方法名与 Win32 导出名不同，必须显式指定 EntryPoint，否则会去 user32.dll 里
+    // 找一个叫 RestoreWindowNative 的入口点并抛 EntryPointNotFoundException。
+    [DllImport("user32.dll", EntryPoint = "ShowWindow", SetLastError = true)]
+    private static extern bool RestoreWindowNative(IntPtr hWnd, int nCmdShow);
+
+    [DllImport("user32.dll", EntryPoint = "SetForegroundWindow", SetLastError = true)]
+    private static extern bool SetForegroundWindowNative(IntPtr hWnd);
 
     private void OpenLog()
     {
